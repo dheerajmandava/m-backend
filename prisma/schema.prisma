@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Shop {
+  id          String    @id @default(cuid())
+  clerkUserId String    @unique
+  name        String
+  email       String    @unique
+  phone       String?
+  address     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  jobCards    JobCard[]
+}
+
+model JobCard {
+  id              String    @id @default(cuid())
+  jobNumber       String    @unique
+  shopId          String
+  shop            Shop      @relation(fields: [shopId], references: [id])
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  vehicleMake     String
+  vehicleModel    String
+  vehicleYear     String
+  registrationNo  String
+  mileage         String?
+  description     String
+  status          JobStatus @default(PENDING)
+  estimatedCost   Float?
+  finalCost       Float?
+  startDate       DateTime?
+  completionDate  DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+enum JobStatus {
+  PENDING
+  IN_PROGRESS
+  AWAITING_PARTS
+  COMPLETED
+  DELIVERED
+} 

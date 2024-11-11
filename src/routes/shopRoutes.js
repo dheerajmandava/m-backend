@@ -3,8 +3,8 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
 const { 
   createShop, 
-  getShopProfile, 
-  updateShopProfile 
+  getShopProfile,
+  updateShop 
 } = require('../controllers/shopController');
 
 // Middleware to log requests
@@ -20,6 +20,6 @@ router.post('/', requireAuth, createShop);
 router.get('/profile', requireAuth, getShopProfile);
 
 // Update shop profile
-router.put('/profile', requireAuth, updateShopProfile);
+router.put('/profile', requireAuth, updateShop);
 
 module.exports = router; 

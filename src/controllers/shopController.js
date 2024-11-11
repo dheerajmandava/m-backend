@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { sendResponse, sendError } = require('../utils/responseHandler');
 
 // Create a new shop
 const createShop = async (req, res) => {
@@ -7,8 +8,8 @@ const createShop = async (req, res) => {
     // Validate required fields
     const { name, email, phone, address } = req.body;
     if (!name || !email) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
+      return sendError(res, {
+        status: 400,
         message: 'Name and email are required'
       });
     }
@@ -21,8 +22,8 @@ const createShop = async (req, res) => {
     });
 
     if (existingShop) {
-      return res.status(400).json({ 
-        error: 'Shop exists',
+      return sendError(res, {
+        status: 400,
         message: 'You already have a registered shop'
       });
     }
@@ -38,15 +39,17 @@ const createShop = async (req, res) => {
       }
     });
 
-    res.status(201).json({
-      message: 'Shop created successfully',
-      data: shop
+    return sendResponse(res, {
+      status: 201,
+      data: shop,
+      message: 'Shop created successfully'
     });
   } catch (error) {
     console.error('Error creating shop:', error);
-    res.status(500).json({ 
-      error: 'Server error',
-      message: 'Failed to create shop'
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to create shop',
+      error: error.message
     });
   }
 };
@@ -55,27 +58,41 @@ const createShop = async (req, res) => {
 const getShopProfile = async (req, res) => {
   try {
     const clerkUserId = req.auth.userId;
+    
+    if (!clerkUserId) {
+      return sendError(res, {
+        status: 401,
+        message: 'Authentication required',
+        error: {
+          code: 'AUTH_REQUIRED'
+        }
+      });
+    }
 
     const shop = await prisma.shop.findUnique({
       where: { clerkUserId }
     });
 
     if (!shop) {
-      return res.status(404).json({ 
-        error: 'Not found',
-        message: 'Shop profile not found'
+      return sendError(res, {
+        status: 404,
+        message: 'Shop profile not found',
+        error: {
+          code: 'NO_SHOP_PROFILE'
+        }
       });
     }
 
-    res.json({
-      message: 'Shop profile retrieved',
-      data: shop
+    return sendResponse(res, {
+      data: shop,
+      message: 'Shop profile retrieved successfully'
     });
   } catch (error) {
     console.error('Error fetching shop:', error);
-    res.status(500).json({ 
-      error: 'Server error',
-      message: 'Failed to fetch shop profile'
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to fetch shop profile',
+      error: error.message
     });
   }
 };
@@ -88,8 +105,8 @@ const updateShopProfile = async (req, res) => {
 
     // Validate required fields
     if (!name || !email) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
+      return sendError(res, {
+        status: 400,
         message: 'Name and email are required'
       });
     }
@@ -100,8 +117,8 @@ const updateShopProfile = async (req, res) => {
     });
 
     if (!existingShop) {
-      return res.status(404).json({ 
-        error: 'Not found',
+      return sendError(res, {
+        status: 404,
         message: 'Shop profile not found'
       });
     }
@@ -117,15 +134,52 @@ const updateShopProfile = async (req, res) => {
       }
     });
 
-    res.json({
-      message: 'Shop profile updated',
-      data: shop
+    return sendResponse(res, {
+      data: shop,
+      message: 'Shop profile updated'
     });
   } catch (error) {
     console.error('Error updating shop:', error);
-    res.status(500).json({ 
-      error: 'Server error',
-      message: 'Failed to update shop profile'
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to update shop profile',
+      error: error.message
+    });
+  }
+};
+
+const updateShop = async (req, res) => {
+  try {
+    const clerkUserId = req.auth.userId;
+    const { name, email, phone, address } = req.body;
+
+    if (!name || !email) {
+      return sendError(res, {
+        status: 400,
+        message: 'Name and email are required'
+      });
+    }
+
+    const shop = await prisma.shop.update({
+      where: { clerkUserId },
+      data: {
+        name,
+        email,
+        phone,
+        address
+      }
+    });
+
+    return sendResponse(res, {
+      data: shop,
+      message: 'Shop updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating shop:', error);
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to update shop',
+      error: error.message
     });
   }
 };
@@ -133,5 +187,6 @@ const updateShopProfile = async (req, res) => {
 module.exports = {
   createShop,
   getShopProfile,
-  updateShopProfile
+  updateShopProfile,
+  updateShop
 }; 

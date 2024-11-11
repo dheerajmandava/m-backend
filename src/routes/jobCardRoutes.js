@@ -23,4 +23,9 @@ router.post('/:jobCardId/costs', jobCardController.addJobCost);
 router.put('/:jobCardId/costs/:costId', jobCardController.updateJobCost);
 router.delete('/:jobCardId/costs/:costId', jobCardController.deleteJobCost);
 
+// After existing routes
+router.get('/:jobCardId/parts', jobCardController.getJobParts);
+router.post('/:jobCardId/parts/:partId/install', jobCardController.installJobPart);
+router.post('/:jobCardId/parts/:partId/return', jobCardController.returnJobPart);
+
 module.exports = router; 

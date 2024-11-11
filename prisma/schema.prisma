@@ -8,79 +8,79 @@ datasource db {
 }
 
 model Shop {
-  id          String    @id @default(cuid())
-  clerkUserId String    @unique
-  name        String
-  email       String    @unique
-  phone       String?
-  address     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  jobCards    JobCard[]
-  mechanics Mechanic[]
-  serviceBays ServiceBay[]
-  parts       Part[]
-  inventory   Inventory[]
-  suppliers   Supplier[]
-  partOrders  PartOrder[]
-  stockAdjustments StockAdjustment[]
+  id                String             @id @default(cuid())
+  clerkUserId       String             @unique
+  name              String
+  email             String             @unique
+  phone             String?
+  address           String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  jobCards          JobCard[]
+  mechanics         Mechanic[]
+  serviceBays       ServiceBay[]
+  parts             Part[]
+  inventory         Inventory[]
+  suppliers         Supplier[]
+  partOrders        PartOrder[]
+  stockAdjustments  StockAdjustment[]
   inventorySettings InventorySettings?
 
   @@index([clerkUserId])
 }
 
 model JobCard {
-  id              String    @id @default(cuid())
-  jobNumber       String    @unique
-  shopId          String
-  shop            Shop      @relation(fields: [shopId], references: [id])
-  customerName    String
-  customerPhone   String?
-  customerEmail   String?
-  vehicleMake     String
-  vehicleModel    String
-  vehicleYear     String
-  registrationNo  String
-  mileage         String?
-  description     String
-  status          JobStatus @default(PENDING)
-  estimatedCost   Float?
-  finalCost       Float?
-  startDate       DateTime?
-  completionDate  DateTime?
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  scheduledDate    DateTime?
-  scheduledTime    String?    // "MORNING" | "AFTERNOON" | "EVENING"
-  estimatedHours   Float?
-  mechanicId      String?
-  mechanic        Mechanic?  @relation(fields: [mechanicId], references: [id])
-  bayId           String?
-  bay             ServiceBay? @relation(fields: [bayId], references: [id])
+  id             String          @id @default(cuid())
+  jobNumber      String          @unique
+  shopId         String
+  shop           Shop            @relation(fields: [shopId], references: [id])
+  customerName   String
+  customerPhone  String?
+  customerEmail  String?
+  vehicleMake    String
+  vehicleModel   String
+  vehicleYear    String
+  registrationNo String
+  mileage        String?
+  description    String
+  status         JobStatus       @default(PENDING)
+  estimatedCost  Float?
+  finalCost      Float?
+  startDate      DateTime?
+  completionDate DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  scheduledDate  DateTime?
+  scheduledTime  String? // "MORNING" | "AFTERNOON" | "EVENING"
+  estimatedHours Float?
+  mechanicId     String?
+  mechanic       Mechanic?       @relation(fields: [mechanicId], references: [id])
+  bayId          String?
+  bay            ServiceBay?     @relation(fields: [bayId], references: [id])
   statusHistory  StatusHistory[]
   jobNotes       JobNote[]
-  parts        Part[]
-  costs        JobCost[]
-  laborRate   Float?    // Shop's standard labor rate
-  totalParts  Float?    // Total parts cost
-  totalLabor  Float?    // Total labor cost
-  totalOther  Float?    // Other costs
-  markup      Float?    // Parts markup percentage
+  parts          Part[]
+  costs          JobCost[]
+  laborRate      Float? // Shop's standard labor rate
+  totalParts     Float? // Total parts cost
+  totalLabor     Float? // Total labor cost
+  totalOther     Float? // Other costs
+  markup         Float? // Parts markup percentage
 
   @@index([mechanicId])
 }
 
 model StatusHistory {
-  id          String    @id @default(cuid())
-  jobCardId   String
-  fromStatus  String
-  toStatus    String
-  notes       String?
-  changedBy   String
-  createdAt   DateTime  @default(now())
-  
-  jobCard     JobCard   @relation(fields: [jobCardId], references: [id])
+  id         String   @id @default(cuid())
+  jobCardId  String
+  fromStatus String
+  toStatus   String
+  notes      String?
+  changedBy  String
+  createdAt  DateTime @default(now())
+
+  jobCard JobCard @relation(fields: [jobCardId], references: [id])
 
   @@index([jobCardId])
 }
@@ -102,58 +102,73 @@ model Mechanic {
 }
 
 model ServiceBay {
-  id          String    @id @default(cuid())
-  shopId      String
-  shop        Shop      @relation(fields: [shopId], references: [id])
-  name        String    // "Bay 1", "Bay 2"
-  type        String    // "GENERAL", "LIFT", "ALIGNMENT"
-  jobs        JobCard[]
-  isActive    Boolean   @default(true)
+  id       String    @id @default(cuid())
+  shopId   String
+  shop     Shop      @relation(fields: [shopId], references: [id])
+  name     String // "Bay 1", "Bay 2"
+  type     String // "GENERAL", "LIFT", "ALIGNMENT"
+  jobs     JobCard[]
+  isActive Boolean   @default(true)
 }
 
 model JobNote {
-  id          String    @id @default(cuid())
-  jobCardId   String
-  content     String
-  createdBy   String
-  createdAt   DateTime  @default(now())
-  
-  jobCard     JobCard   @relation(fields: [jobCardId], references: [id])
+  id        String   @id @default(cuid())
+  jobCardId String
+  content   String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  jobCard JobCard @relation(fields: [jobCardId], references: [id])
 
   @@index([jobCardId])
 }
 
 model Part {
-  id          String    @id @default(cuid())
-  shopId      String
-  shop        Shop      @relation(fields: [shopId], references: [id])
-  jobCardId   String?
-  jobCard     JobCard?  @relation(fields: [jobCardId], references: [id])
-  name        String
-  partNumber  String
-  quantity    Int
-  costPrice   Float
+  id           String     @id @default(cuid())
+  shopId       String
+  shop         Shop       @relation(fields: [shopId], references: [id])
+  jobCardId    String?
+  jobCard      JobCard?   @relation(fields: [jobCardId], references: [id])
+  inventoryId  String?
+  inventory    Inventory? @relation(fields: [inventoryId], references: [id])
+  name         String
+  partNumber   String
+  quantity     Int
+  costPrice    Float
   sellingPrice Float
-  supplier    String?
-  status      String    // "ORDERED", "IN_STOCK", "INSTALLED"
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  supplier     String?
+  status       PartStatus @default(PENDING) // New enum
+  installedAt  DateTime? // Track when part was installed
+  installedBy  String? // Track who installed it
+  returnedAt   DateTime? // Track if part was returned
+  returnReason String? // Reason for return if applicable
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@index([shopId])
   @@index([jobCardId])
+  @@index([inventoryId])
+}
+
+enum PartStatus {
+  PENDING // Part added to job but not installed
+  INSTALLED // Part installed in vehicle
+  RETURNED // Part returned to inventory
+  DAMAGED // Part damaged during installation
+  REPLACED // Part replaced under warranty
 }
 
 model JobCost {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   jobCardId   String
-  jobCard     JobCard   @relation(fields: [jobCardId], references: [id])
-  type        String    // "LABOR", "PARTS", "OTHER"
+  jobCard     JobCard  @relation(fields: [jobCardId], references: [id])
+  type        String // "LABOR", "PARTS", "OTHER"
   description String
-  hours       Float?    // For labor costs
-  rate        Float?    // Hourly rate for labor
+  hours       Float? // For labor costs
+  rate        Float? // Hourly rate for labor
   amount      Float
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([jobCardId])
 }
@@ -167,23 +182,24 @@ enum JobStatus {
 }
 
 model Inventory {
-  id          String    @id @default(cuid())
-  shopId      String
-  shop        Shop      @relation(fields: [shopId], references: [id])
-  partNumber  String
-  name        String
-  description String?
-  quantity    Int       @default(0)
-  minQuantity Int      @default(5)  // Reorder threshold
-  location    String?   // Storage location
-  category    String?
-  supplier    Supplier? @relation(fields: [supplierId], references: [id])
-  supplierId  String?
-  costPrice   Float
+  id           String            @id @default(cuid())
+  shopId       String
+  shop         Shop              @relation(fields: [shopId], references: [id])
+  partNumber   String
+  name         String
+  description  String?
+  quantity     Int               @default(0)
+  minQuantity  Int               @default(5) // Reorder threshold
+  location     String? // Storage location
+  category     String?
+  supplier     Supplier?         @relation(fields: [supplierId], references: [id])
+  supplierId   String?
+  costPrice    Float
   sellingPrice Float
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  adjustments StockAdjustment[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  adjustments  StockAdjustment[]
+  parts        Part[] // Relation to parts used in jobs
 
   @@unique([shopId, partNumber])
   @@index([shopId])
@@ -200,7 +216,7 @@ model Supplier {
   terms     String?
   leadTime  Int?
   orders    PartOrder[]
-  inventory   Inventory[]
+  inventory Inventory[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -208,34 +224,34 @@ model Supplier {
 }
 
 model PartOrder {
-  id        String   @id @default(cuid())
-  shopId    String
-  shop      Shop     @relation(fields: [shopId], references: [id])
+  id         String          @id @default(cuid())
+  shopId     String
+  shop       Shop            @relation(fields: [shopId], references: [id])
   supplierId String
-  supplier  Supplier @relation(fields: [supplierId], references: [id])
-  status    String   @default("PENDING") // PENDING, PARTIAL, COMPLETE, CANCELLED
-  total     Float
-  notes     String?
-  items     PartOrderItem[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  supplier   Supplier        @relation(fields: [supplierId], references: [id])
+  status     String          @default("PENDING") // PENDING, PARTIAL, COMPLETE, CANCELLED
+  total      Float
+  notes      String?
+  items      PartOrderItem[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
   @@index([shopId])
   @@index([supplierId])
 }
 
 model PartOrderItem {
-  id          String    @id @default(cuid())
-  orderId     String
-  order       PartOrder @relation(fields: [orderId], references: [id])
-  partNumber  String
-  name        String
-  quantity    Int
-  costPrice   Float
-  total       Float
-  status      String    @default("PENDING") // PENDING, RECEIVED
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  orderId    String
+  order      PartOrder @relation(fields: [orderId], references: [id])
+  partNumber String
+  name       String
+  quantity   Int
+  costPrice  Float
+  total      Float
+  status     String    @default("PENDING") // PENDING, RECEIVED
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([orderId])
 }
@@ -246,11 +262,11 @@ model StockAdjustment {
   shop        Shop      @relation(fields: [shopId], references: [id])
   inventoryId String
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
-  type        String    // "IN", "OUT", "ADJUSTMENT"
+  type        String // "IN", "OUT", "ADJUSTMENT"
   quantity    Int
-  reason      String    // "PURCHASE", "SALE", "RETURN", "DAMAGE", "COUNT_ADJUSTMENT"
+  reason      String // "PURCHASE", "SALE", "RETURN", "DAMAGE", "COUNT_ADJUSTMENT"
   notes       String?
-  reference   String?   // Reference to related document (order ID, job card ID, etc)
+  reference   String? // Reference to related document (order ID, job card ID, etc)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -260,14 +276,14 @@ model StockAdjustment {
 
 model InventorySettings {
   id                    String   @id @default(cuid())
-  shopId               String   @unique
-  shop                 Shop     @relation(fields: [shopId], references: [id])
-  orderingCost         Float    @default(500)
+  shopId                String   @unique
+  shop                  Shop     @relation(fields: [shopId], references: [id])
+  orderingCost          Float    @default(500)
   holdingCostPercentage Float    @default(20)
   safetyStockPercentage Float    @default(20)
-  defaultLeadTime      Int      @default(7)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  defaultLeadTime       Int      @default(7)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([shopId])
 }

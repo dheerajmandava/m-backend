@@ -157,7 +157,14 @@ const getJobCard = async (req, res) => {
         shopId 
       },
       include: {
-        mechanic: true
+        mechanic: true,
+        parts: true,
+        costs: true,
+        statusHistory: {
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     });
 
@@ -169,8 +176,24 @@ const getJobCard = async (req, res) => {
       });
     }
 
+    // Calculate totals
+    const totalParts = jobCard.parts.reduce((sum, part) => 
+      sum + (part.sellingPrice * part.quantity), 0);
+    const totalLabor = jobCard.costs
+      .filter(cost => cost.type === 'LABOR')
+      .reduce((sum, cost) => sum + cost.amount, 0);
+    const totalOther = jobCard.costs
+      .filter(cost => cost.type === 'OTHER')
+      .reduce((sum, cost) => sum + cost.amount, 0);
+
     return sendResponse(res, {
-      data: jobCard,
+      data: {
+        ...jobCard,
+        totalParts,
+        totalLabor,
+        totalOther,
+        finalCost: totalParts + totalLabor + totalOther
+      },
       message: 'Job retrieved successfully'
     });
   } catch (error) {
@@ -396,41 +419,67 @@ const addPartToJob = async (req, res) => {
   try {
     const shopId = req.shop.id;
     const { jobCardId } = req.params;
-    const { 
-      name, 
-      partNumber, 
-      quantity, 
-      costPrice, 
-      sellingPrice,
-      supplier,
-      status = 'ORDERED' 
-    } = req.body;
+    const { inventoryId, quantity } = req.body;
 
-    const part = await prisma.part.create({
-      data: {
-        shopId,
-        jobCardId,
-        name,
-        partNumber,
-        quantity,
-        costPrice: parseFloat(costPrice),
-        sellingPrice: parseFloat(sellingPrice),
-        supplier,
-        status
+    const result = await prisma.$transaction(async (prisma) => {
+      // Check inventory first
+      const inventoryItem = await prisma.inventory.findUnique({
+        where: { id: inventoryId, shopId }
+      });
+
+      if (!inventoryItem || inventoryItem.quantity < quantity) {
+        throw new Error('Insufficient stock');
       }
+
+      // Decrease inventory quantity
+      await prisma.inventory.update({
+        where: { id: inventoryId },
+        data: {
+          quantity: {
+            decrement: quantity
+          }
+        }
+      });
+
+      // Create stock adjustment record
+      await prisma.stockAdjustment.create({
+        data: {
+          shopId,
+          inventoryId,
+          type: 'OUT',
+          quantity,
+          reason: 'JOB_PART',
+          reference: jobCardId,
+          notes: `Added to Job Card ${jobCardId}`
+        }
+      });
+
+      // Create the part
+      const part = await prisma.part.create({
+        data: {
+          shopId,
+          jobCardId,
+          inventoryId,
+          name: inventoryItem.name,
+          partNumber: inventoryItem.partNumber,
+          quantity,
+          costPrice: inventoryItem.costPrice,
+          sellingPrice: inventoryItem.sellingPrice,
+          status: 'PENDING'
+        }
+      });
+
+      return part;
     });
 
-    // Update job totals
-    await updateJobTotals(jobCardId);
-
     return sendResponse(res, {
-      data: part,
+      data: result,
       message: 'Part added successfully'
     });
   } catch (error) {
     return sendError(res, {
       status: 500,
-      message: 'Failed to add part',
+      message: error.message || 'Failed to add part',
       error: error.message
     });
   }
@@ -471,13 +520,59 @@ const deletePart = async (req, res) => {
     const shopId = req.shop.id;
     const { jobCardId, partId } = req.params;
 
-    await prisma.part.delete({
+    // First find the part
+    const part = await prisma.part.findFirst({
       where: { 
         id: partId,
         shopId,
         jobCardId 
       }
     });
+
+    if (!part) {
+      return sendError(res, {
+        status: 404,
+        message: 'Part not found',
+      });
+    }
+
+    // If part exists and was from inventory, return quantity
+    if (part.inventoryId) {
+      await prisma.$transaction(async (prisma) => {
+        // Delete the part
+        await prisma.part.delete({
+          where: { id: partId }
+        });
+
+        // Return quantity to inventory
+        await prisma.inventory.update({
+          where: { id: part.inventoryId },
+          data: {
+            quantity: {
+              increment: part.quantity
+            }
+          }
+        });
+
+        // Create stock adjustment record
+        await prisma.stockAdjustment.create({
+          data: {
+            shopId,
+            inventoryId: part.inventoryId,
+            type: 'IN',
+            quantity: part.quantity,
+            reason: 'REMOVAL',
+            reference: jobCardId,
+            notes: `Removed from Job Card ${jobCardId}`
+          }
+        });
+      });
+    } else {
+      // If part wasn't from inventory, just delete it
+      await prisma.part.delete({
+        where: { id: partId }
+      });
+    }
 
     await updateJobTotals(jobCardId);
 
@@ -580,33 +675,232 @@ const deleteJobCost = async (req, res) => {
 // Helper function to update job totals
 const updateJobTotals = async (jobCardId) => {
   const parts = await prisma.part.findMany({
-    where: { jobCardId }
-  });
-
-  const costs = await prisma.jobCost.findMany({
-    where: { jobCardId }
+    where: { 
+      jobCardId,
+      status: {
+        not: 'RETURNED'  // Explicitly exclude RETURNED parts
+      }
+    }
   });
 
   const totalParts = parts.reduce((sum, part) => 
-    sum + (part.sellingPrice * part.quantity), 0);
-
-  const totalLabor = costs
-    .filter(cost => cost.type === 'LABOR')
-    .reduce((sum, cost) => sum + cost.amount, 0);
-
-  const totalOther = costs
-    .filter(cost => cost.type === 'OTHER')
-    .reduce((sum, cost) => sum + cost.amount, 0);
+    sum + (part.sellingPrice * part.quantity), 0
+  );
 
   await prisma.jobCard.update({
     where: { id: jobCardId },
     data: {
       totalParts,
-      totalLabor,
-      totalOther,
-      finalCost: totalParts + totalLabor + totalOther
+      finalCost: totalParts // Update this if you have other costs to include
     }
   });
+};
+
+const installJobPart = async (req, res) => {
+  try {
+    const shopId = req.shop.id;
+    const { jobCardId, partId } = req.params;
+    const userId = req.auth.userId;
+
+    const part = await prisma.part.update({
+      where: { 
+        id: partId,
+        shopId,
+        jobCardId,
+        status: 'PENDING'
+      },
+      data: {
+        status: 'INSTALLED',
+        installedAt: new Date(),
+        installedBy: userId
+      }
+    });
+
+    return sendResponse(res, {
+      data: part,
+      message: 'Part marked as installed'
+    });
+  } catch (error) {
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to install part',
+      error: error.message
+    });
+  }
+};
+
+const returnJobPart = async (req, res) => {
+  try {
+    const shopId = req.shop.id;
+    const { jobCardId, partId } = req.params;
+    const { reason } = req.body;
+
+    const result = await prisma.$transaction(async (prisma) => {
+      const part = await prisma.part.findUnique({
+        where: { id: partId }
+      });
+
+      if (!part || (part.status !== 'PENDING' && part.status !== 'INSTALLED')) {
+        throw new Error('Part cannot be returned');
+      }
+
+      // Update part status
+      await prisma.part.update({
+        where: { id: partId },
+        data: {
+          status: 'RETURNED',
+          returnedAt: new Date(),
+          returnReason: reason
+        }
+      });
+
+      // Return quantity to inventory
+      if (part.inventoryId) {
+        await prisma.inventory.update({
+          where: { id: part.inventoryId },
+          data: {
+            quantity: {
+              increment: part.quantity
+            }
+          }
+        });
+
+        await prisma.stockAdjustment.create({
+          data: {
+            shopId,
+            inventoryId: part.inventoryId,
+            type: 'IN',
+            quantity: part.quantity,
+            reason: 'RETURN',
+            reference: jobCardId,
+            notes: reason
+          }
+        });
+      }
+
+      return part;
+    });
+
+    await updateJobTotals(jobCardId);
+
+    return sendResponse(res, {
+      data: result,
+      message: 'Part returned successfully'
+    });
+  } catch (error) {
+    return sendError(res, {
+      status: 500,
+      message: error.message || 'Failed to return part',
+      error: error.message
+    });
+  }
+};
+
+const getJobParts = async (req, res) => {
+  try {
+    const shopId = req.shop.id;
+    const { jobCardId } = req.params;
+
+    const parts = await prisma.part.findMany({
+      where: {
+        shopId,
+        jobCardId,
+        status: {
+          not: 'RETURNED'  // Don't fetch returned parts
+        }
+      },
+      include: {
+        inventory: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    const totalPartsCost = parts.reduce((sum, part) => 
+      sum + (part.sellingPrice * part.quantity), 0
+    );
+
+    return sendResponse(res, {
+      data: {
+        parts,
+        totalCost: totalPartsCost
+      },
+      message: 'Parts retrieved successfully'
+    });
+  } catch (error) {
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to get parts',
+      error: error.message
+    });
+  }
+};
+
+const removeJobPart = async (req, res) => {
+  try {
+    const shopId = req.shop.id;
+    const { jobCardId, partId } = req.params;
+
+    // Start transaction
+    const result = await prisma.$transaction(async (prisma) => {
+      // Get the part first
+      const part = await prisma.part.findFirst({
+        where: { 
+          id: partId,
+          shopId,
+          jobCardId
+        }
+      });
+
+      if (!part) {
+        throw new Error('Part not found');
+      }
+
+      // If part was from inventory and not installed, return to stock
+      if (part.inventoryId && part.status === 'PENDING') {
+        await prisma.inventory.update({
+          where: { id: part.inventoryId },
+          data: {
+            quantity: {
+              increment: part.quantity
+            }
+          }
+        });
+
+        // Create stock adjustment record
+        await prisma.stockAdjustment.create({
+          data: {
+            shopId,
+            inventoryId: part.inventoryId,
+            type: 'IN',
+            quantity: part.quantity,
+            reason: 'REMOVAL',
+            reference: jobCardId,
+            notes: 'Part removed from job'
+          }
+        });
+      }
+
+      // Delete the part
+      await prisma.part.delete({
+        where: { id: partId }
+      });
+
+      return part;
+    });
+
+    return sendResponse(res, {
+      data: result,
+      message: 'Part removed successfully'
+    });
+  } catch (error) {
+    return sendError(res, {
+      status: 500,
+      message: 'Failed to remove part',
+      error: error.message
+    });
+  }
 };
 
 module.exports = {
@@ -624,5 +918,9 @@ module.exports = {
   deletePart,
   addJobCost,
   updateJobCost,
-  deleteJobCost
+  deleteJobCost,
+  installJobPart,
+  returnJobPart,
+  getJobParts,
+  removeJobPart
 }; 

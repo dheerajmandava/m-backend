@@ -13,6 +13,7 @@ router.get('/', jobCardController.getShopJobCards);
 router.get('/:id', jobCardController.getJobCard);
 router.patch('/:id', jobCardController.updateJobCard);
 router.delete('/:id', jobCardController.deleteJobCard);
+router.patch('/:id/status', jobCardController.updateJobStatus);
 
 // New routes for parts and costs
 router.post('/:jobCardId/parts', jobCardController.addPartToJob);

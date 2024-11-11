@@ -117,12 +117,13 @@ const updateJobStatus = async (req, res) => {
     const updatedJob = await prisma.jobCard.update({
       where: { id },
       data: {
-        status,
+        status: status,
+        notes: notes,
         statusHistory: {
           create: {
             fromStatus: currentJob.status,
             toStatus: status,
-            notes,
+            notes: notes,
             changedBy: userId
           }
         }

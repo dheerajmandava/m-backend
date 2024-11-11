@@ -13,7 +13,7 @@ const supplierRoutes = require('./src/routes/supplierRoutes');
 const stockAdjustmentRoutes = require('./src/routes/stockAdjustmentRoutes');
 const inventoryReportRoutes = require('./src/routes/inventoryReportRoutes');
 const inventorySettingsRoutes = require('./src/routes/inventorySettingsRoutes');
-
+const estimateRoutes = require('./src/routes/estimateRoutes');
 
 dotenv.config();
 
@@ -62,7 +62,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/stock-adjustments', stockAdjustmentRoutes);
 app.use('/api/inventory-reports', inventoryReportRoutes);
 app.use('/api/inventory', inventorySettingsRoutes);
-
+app.use('/api', estimateRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

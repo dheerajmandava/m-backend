@@ -25,6 +25,9 @@ model Shop {
   partOrders        PartOrder[]
   stockAdjustments  StockAdjustment[]
   inventorySettings InventorySettings?
+  estimates         Estimate[]
+  invoices          Invoice[]
+  payments          Payment[]
 
   @@index([clerkUserId])
 }
@@ -67,6 +70,8 @@ model JobCard {
   totalLabor     Float? // Total labor cost
   totalOther     Float? // Other costs
   markup         Float? // Parts markup percentage
+  estimates      Estimate[]
+  invoices       Invoice[]
 
   @@index([mechanicId])
 }
@@ -286,4 +291,142 @@ model InventorySettings {
   updatedAt             DateTime @updatedAt
 
   @@index([shopId])
+}
+
+// Add these enums
+enum EstimateStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIAL
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// Add these models
+model Estimate {
+  id                String         @id @default(cuid())
+  shopId           String
+  shop             Shop           @relation(fields: [shopId], references: [id])
+  jobCardId        String
+  jobCard          JobCard        @relation(fields: [jobCardId], references: [id])
+  estimateNumber   String         @unique
+  status           EstimateStatus @default(DRAFT)
+  subtotal         Float
+  taxRate          Float?         // Percentage
+  taxAmount        Float?
+  discountRate     Float?         // Percentage
+  discountAmount   Float?
+  total            Float
+  notes            String?
+  termsAndConditions String?
+  validUntil       DateTime?
+  sentAt           DateTime?
+  approvedAt       DateTime?
+  rejectedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  items            EstimateItem[]
+  invoice          Invoice?
+
+  @@index([shopId])
+  @@index([jobCardId])
+}
+
+model EstimateItem {
+  id          String    @id @default(cuid())
+  estimateId  String
+  estimate    Estimate  @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  type        String    // LABOR, PARTS, OTHER
+  description String
+  quantity    Int?
+  unitPrice   Float
+  amount      Float
+  notes       String?
+}
+
+model Invoice {
+  id                String        @id @default(cuid())
+  shopId           String
+  shop             Shop          @relation(fields: [shopId], references: [id])
+  jobCardId        String
+  jobCard          JobCard       @relation(fields: [jobCardId], references: [id])
+  estimateId       String?       @unique
+  estimate         Estimate?     @relation(fields: [estimateId], references: [id])
+  invoiceNumber    String        @unique
+  status           InvoiceStatus @default(DRAFT)
+  subtotal         Float
+  taxRate          Float?        // Percentage
+  taxAmount        Float?
+  discountRate     Float?        // Percentage
+  discountAmount   Float?
+  total            Float
+  amountPaid       Float         @default(0)
+  balance          Float
+  dueDate          DateTime?
+  notes            String?
+  termsAndConditions String?
+  sentAt           DateTime?
+  paidAt           DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  items            InvoiceItem[]
+  payments         Payment[]
+
+  @@index([shopId])
+  @@index([jobCardId])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  type        String   // LABOR, PARTS, OTHER
+  description String
+  quantity    Int?
+  unitPrice   Float
+  amount      Float
+  notes       String?
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  shopId        String
+  shop          Shop         @relation(fields: [shopId], references: [id])
+  invoiceId     String
+  invoice       Invoice      @relation(fields: [invoiceId], references: [id])
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  reference     String?      // Payment reference number
+  notes         String?
+  processedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([shopId])
+  @@index([invoiceId])
 }

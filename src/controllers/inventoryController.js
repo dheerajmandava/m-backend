@@ -5,17 +5,17 @@ const { sendResponse, sendError } = require('../utils/responseHandler');
 const getInventory = async (req, res) => {
   try {
     const shopId = req.shop.id;
+    
     const inventory = await prisma.inventory.findMany({
-      where: { shopId },
-      orderBy: { updatedAt: 'desc' }
+      where: { shopId }
     });
 
+    // Return empty array if no inventory found
     return sendResponse(res, {
-      data: inventory,
+      data: inventory || [],
       message: 'Inventory retrieved successfully'
     });
   } catch (error) {
-    console.error('Fetch inventory error:', error);
     return sendError(res, {
       status: 500,
       message: 'Failed to fetch inventory',

@@ -807,7 +807,7 @@ const getJobParts = async (req, res) => {
         shopId,
         jobCardId,
         status: {
-          not: 'RETURNED'  // Don't fetch returned parts
+          not: 'RETURNED'
         }
       },
       include: {
@@ -818,18 +818,18 @@ const getJobParts = async (req, res) => {
       }
     });
 
-    const totalPartsCost = parts.reduce((sum, part) => 
-      sum + (part.sellingPrice * part.quantity), 0
-    );
-
+    // Return empty data if no parts found
     return sendResponse(res, {
       data: {
-        parts,
-        totalCost: totalPartsCost
+        parts: parts || [],
+        totalCost: parts.reduce((sum, part) => 
+          sum + (part.sellingPrice * part.quantity), 0
+        )
       },
       message: 'Parts retrieved successfully'
     });
   } catch (error) {
+    // Only return error for actual errors, not empty results
     return sendError(res, {
       status: 500,
       message: 'Failed to get parts',

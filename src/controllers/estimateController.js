@@ -186,8 +186,8 @@ const updateEstimateStatus = async (req, res) => {
 // List estimates for a job
 const listJobEstimates = async (req, res) => {
   try {
-    const { jobCardId } = req.params;
     const shopId = req.shop.id;
+    const { jobCardId } = req.params;
 
     const estimates = await prisma.estimate.findMany({
       where: {
@@ -195,22 +195,26 @@ const listJobEstimates = async (req, res) => {
         shopId
       },
       include: {
-        items: true
+        items: true,
+        jobCard: {
+          select: {
+            jobNumber: true,
+            customerName: true,
+            customerPhone: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            registrationNo: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    return sendResponse(res, {
-      data: estimates
-    });
+    return sendResponse(res, { data: estimates });
   } catch (error) {
-    return sendError(res, {
-      status: 500,
-      message: 'Failed to fetch estimates',
-      error: error.message
-    });
+    return sendError(res, { error });
   }
 };
 

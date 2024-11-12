@@ -130,7 +130,7 @@ const updateSchedule = async (req, res) => {
         shopId 
       },
       data: {
-        mechanicId: parseInt(mechanicId),
+        mechanicId: mechanicId,
         scheduledDate: new Date(scheduledDate),
         scheduledTime,
         estimatedHours: parseFloat(estimatedHours)

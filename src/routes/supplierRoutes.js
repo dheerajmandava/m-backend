@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuthWithShop } = require('../middleware/auth');
+const { requireAuth, requireAuthWithShop } = require('../middleware/auth');
 const supplierController = require('../controllers/supplierController');
 
+router.use(requireAuth);
 router.use(requireAuthWithShop);
 
 router.get('/', supplierController.getSuppliers);

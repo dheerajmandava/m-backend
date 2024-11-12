@@ -6,8 +6,11 @@ const {
   updateEstimateStatus,
   listJobEstimates
 } = require('../controllers/estimateController');
-const { requireAuthWithShop } = require('../middleware/auth');
+const { requireAuth, requireAuthWithShop } = require('../middleware/auth'); 
+// For routes that only need auth
+router.use(requireAuth);
 
+// For routes that need shop profile
 router.use(requireAuthWithShop);
 
 // Create new estimate for a job

@@ -53,7 +53,7 @@ app.get('/health', (req, res) => {
 
 // Apply routes
 app.use('/api/shops', shopRoutes);
-app.use('/api/job-cards', jobCardRoutes);
+app.use('/api/jobs', jobCardRoutes);
 app.use('/api/mechanics', mechanicRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/inventory', inventoryRoutes);

@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuthWithShop } = require('../middleware/auth');
+const {requireAuth, requireAuthWithShop } = require('../middleware/auth');
 const jobCardController = require('../controllers/jobCardController');
 
+router.use(requireAuth);
 router.use(requireAuthWithShop);
 
 // Existing routes
@@ -11,9 +12,9 @@ router.get('/scheduled', jobCardController.getScheduledJobs);
 router.post('/', jobCardController.createJobCard);
 router.get('/', jobCardController.getShopJobCards);
 router.get('/:id', jobCardController.getJobCard);
-router.patch('/:id', jobCardController.updateJobCard);
+router.put('/:id', jobCardController.updateJobCard);
 router.delete('/:id', jobCardController.deleteJobCard);
-router.patch('/:id/status', jobCardController.updateJobStatus);
+router.put('/:id/status', jobCardController.updateJobStatus);
 
 // New routes for parts and costs
 router.post('/:jobCardId/parts', jobCardController.addPartToJob);

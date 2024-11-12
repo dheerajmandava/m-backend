@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { prisma } = require('../lib/prisma');
 const { sendResponse, sendError } = require('../utils/responseHandler');
+const { requireAuth, requireAuthWithShop } = require('../middleware/auth');
+
+router.use(requireAuth);
+router.use(requireAuthWithShop);
 
 // Get inventory settings
 router.get('/', async (req, res) => {

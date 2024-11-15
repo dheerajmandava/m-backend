@@ -62,7 +62,7 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/stock-adjustments', stockAdjustmentRoutes);
 app.use('/api/inventory-reports', inventoryReportRoutes);
 app.use('/api/inventory', inventorySettingsRoutes);
-app.use('/api', estimateRoutes);
+app.use('/api/estimates', estimateRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

@@ -26,21 +26,36 @@ const generateEstimateNumber = async (shopId) => {
 const createEstimate = async (req, res) => {
   try {
     const shopId = req.shop.id;
-    const { jobCardId } = req.params;
+    const { id: jobCardId } = req.params;
     const { 
       items,
-      taxRate,
+      subtotal,
+      taxAmount,
       discountRate,
-      notes,
+      discountAmount,
+      total,
       termsAndConditions,
       validUntil 
     } = req.body;
 
-    // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const taxAmount = taxRate ? (subtotal * taxRate / 100) : 0;
-    const discountAmount = discountRate ? (subtotal * discountRate / 100) : 0;
-    const total = subtotal + taxAmount - discountAmount;
+    // Validate required fields
+    if (!items?.length) {
+      return sendError(res, {
+        status: 400,
+        message: 'Items are required'
+      });
+    }
+
+    // Validate calculations
+    const calculatedSubtotal = items.reduce((sum, item) => 
+      sum + (item.quantity * item.unitPrice), 0);
+    
+    if (Math.abs(calculatedSubtotal - subtotal) > 0.01) {
+      return sendError(res, {
+        status: 400,
+        message: 'Invalid subtotal calculation'
+      });
+    }
 
     const estimateNumber = await generateEstimateNumber(shopId);
 
@@ -50,12 +65,10 @@ const createEstimate = async (req, res) => {
         jobCardId,
         estimateNumber,
         subtotal,
-        taxRate,
         taxAmount,
-        discountRate,
-        discountAmount,
+        discountRate: discountRate || 0,
+        discountAmount: discountAmount || 0,
         total,
-        notes,
         termsAndConditions,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
@@ -70,7 +83,16 @@ const createEstimate = async (req, res) => {
         }
       },
       include: {
-        items: true
+        items: true,
+        jobCard: {
+          select: {
+            jobNumber: true,
+            customerName: true,
+            vehicleMake: true,
+            vehicleModel: true,
+            registrationNo: true
+          }
+        }
       }
     });
 
@@ -79,6 +101,7 @@ const createEstimate = async (req, res) => {
       message: 'Estimate created successfully'
     });
   } catch (error) {
+    console.error('Create estimate error:', error);
     return sendError(res, {
       status: 500,
       message: 'Failed to create estimate',
@@ -119,10 +142,29 @@ const getEstimate = async (req, res) => {
       });
     }
 
-    return sendResponse(res, {
-      data: estimate
+    // Ensure all required fields are calculated
+    const calculatedEstimate = {
+      ...estimate,
+      subtotal: estimate.subtotal || estimate.items.reduce((sum, item) => 
+        sum + (item.quantity * item.unitPrice), 0),
+      taxAmount: estimate.taxAmount || estimate.items.reduce((sum, item) => {
+        const amount = item.quantity * item.unitPrice;
+        const rate = item.type === 'PARTS_12' ? 0.12 : 
+                    item.type === 'PARTS_28' ? 0.28 : 0.18;
+        return sum + (amount * rate);
+      }, 0),
+      total: estimate.total || (
+        estimate.subtotal + 
+        estimate.taxAmount - 
+        (estimate.discountAmount || 0)
+      )
+    };
+
+    return sendResponse(res, { 
+      data: calculatedEstimate
     });
   } catch (error) {
+    console.error('Get estimate error:', error);
     return sendError(res, {
       status: 500,
       message: 'Failed to fetch estimate',
@@ -187,11 +229,11 @@ const updateEstimateStatus = async (req, res) => {
 const listJobEstimates = async (req, res) => {
   try {
     const shopId = req.shop.id;
-    const { jobCardId } = req.params;
+    const { id } = req.params;
 
     const estimates = await prisma.estimate.findMany({
       where: {
-        jobCardId,
+        jobCardId: id,
         shopId
       },
       include: {
